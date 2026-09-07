@@ -109,11 +109,10 @@ exports.createBlog = async (req, res) => {
 // ================================================================
 exports.getAllBlogs = async (req, res) => {
   try {
-    const { status, category, search, page = 1, limit = 10 } = req.query;
+    const { status, search, page = 1, limit = 10 } = req.query;
 
     const filter = {};
     if (status) filter.status = status;
-    if (category) filter.category = category;
     if (search) {
       filter.$or = [
         { title: { $regex: search, $options: "i" } },

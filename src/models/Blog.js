@@ -96,7 +96,6 @@ const BlogSchema = new mongoose.Schema(
     date: { type: Date, required: true },
     author: { type: String, default: "", trim: true, maxlength: 80 },
     authorRole: { type: String, default: "", trim: true },
-    category: { type: String, required: true },
 
     coverImage: { type: String, required: true }, // stored as relative path e.g. /uploads/blogs/xxx.jpg
 
