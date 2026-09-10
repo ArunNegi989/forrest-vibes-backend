@@ -57,6 +57,36 @@ const applyContentImageFiles = (content = [], imageFilesById) => {
   });
 };
 
+// ================================================================
+// Helper: normalize any coverImage/image src to a relative "/uploads/xxx"
+// path — the frontend sometimes sends back a full resolved URL
+// (e.g. "https://yourdomain.com/uploads/xxx.jpg") when the image
+// wasn't changed on that submit. Without this normalization, that
+// full URL gets saved to the DB as-is, and on the NEXT update,
+// oldPaths ("/uploads/xxx.jpg") won't string-match newPaths
+// ("https://.../uploads/xxx.jpg") — so the cleanup logic below
+// wrongly thinks the old file is no longer referenced and deletes
+// it from disk, even though it's still in use. This keeps the DB
+// value always relative so the comparison is always apples-to-apples.
+// ================================================================
+const normalizeUploadPath = (val) => {
+  if (!val || typeof val !== "string") return val;
+  const match = val.match(/\/uploads\/[^/?#]+$/);
+  return match ? match[0] : val;
+};
+
+const normalizeContentImagePaths = (content = []) =>
+  content.map((block) => {
+    if (block.type !== "images" || !Array.isArray(block.images)) return block;
+    return {
+      ...block,
+      images: block.images.map((img) => ({
+        ...img,
+        src: normalizeUploadPath(img.src),
+      })),
+    };
+  });
+
 // Collect every public /uploads/blogs/... path currently referenced by a blog doc
 const collectImagePaths = (blogDoc) => {
   const paths = [];
@@ -79,9 +109,12 @@ exports.createBlog = async (req, res) => {
 
     if (coverFile) {
       payload.coverImage = toPublicPath(coverFile.filename);
+    } else {
+      payload.coverImage = normalizeUploadPath(payload.coverImage);
     }
 
     payload.content = applyContentImageFiles(payload.content, imageFilesById);
+    payload.content = normalizeContentImagePaths(payload.content);
 
     const blog = await Blog.create(payload);
 
@@ -191,8 +224,11 @@ exports.updateBlog = async (req, res) => {
 
     if (coverFile) {
       payload.coverImage = toPublicPath(coverFile.filename);
+    } else {
+      payload.coverImage = normalizeUploadPath(payload.coverImage);
     }
     payload.content = applyContentImageFiles(payload.content, imageFilesById);
+    payload.content = normalizeContentImagePaths(payload.content);
 
     const updated = await Blog.findByIdAndUpdate(id, payload, {
       new: true,
